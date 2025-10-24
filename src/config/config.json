@@ -1,0 +1,32 @@
+{
+  "development": {
+    "username": "YOUR_DB_USER_FROM_ENV",
+    "password": "YOUR_DB_PASSWORD_FROM_ENV",
+    "database": "YOUR_DB_NAME_FROM_ENV",
+    "host": "YOUR_DB_HOST_FROM_ENV",
+    "dialect": "postgres",
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false
+      }
+    }
+  },
+  "test": {
+    "username": "YOUR_DB_USER_FROM_ENV",
+    "password": "YOUR_DB_PASSWORD_FROM_ENV",
+    "database": "YOUR_DB_NAME_FROM_ENV_test",
+    "host": "YOUR_DB_HOST_FROM_ENV",
+    "dialect": "postgres"
+  },
+  "production": {
+    "use_env_variable": "DATABASE_URL",
+    "dialect": "postgres",
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false
+      }
+    }
+  }
+}
