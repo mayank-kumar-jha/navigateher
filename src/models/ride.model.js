@@ -1,39 +1,31 @@
-// src/models/ride.model.js
 const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
   const Ride = sequelize.define(
     "Ride",
     {
-      // Use Firestore Ride ID as primary key? Or generate UUID here?
-      // Let's use Firestore ID for consistency if Firestore is the source of truth for live rides.
-      // If Postgres is the main store for *completed* rides, use UUID. Let's assume Firestore ID for now.
-      firestoreRideId: {
-        type: DataTypes.STRING,
+      // Use standard 'id' with UUID for database primary key (Best Practice for PG)
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4, // Auto-generate UUIDs
         primaryKey: true,
         allowNull: false,
       },
-      riderId: {
-        // Foreign key to User model (Firebase UID)
+      // Optional: Store the Firestore ID separately if needed for linking live data
+      firestoreRideId: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true,
+      },
+      riderUid: { // Foreign key to User model (Firebase UID)
         type: DataTypes.STRING,
         allowNull: false,
-        references: {
-          model: "users", // Name of the table
-          key: "uid",
-        },
-        onUpdate: "CASCADE",
-        onDelete: "SET NULL", // Or 'CASCADE' if rides should be deleted with user
+        references: { model: "users", key: "uid" },
       },
-      driverId: {
-        // Foreign key to User model (Firebase UID)
+      driverUid: { // Foreign key to User model (Firebase UID)
         type: DataTypes.STRING,
-        allowNull: true, // Driver might not be assigned initially or reject
-        references: {
-          model: "users",
-          key: "uid",
-        },
-        onUpdate: "CASCADE",
-        onDelete: "SET NULL",
+        allowNull: true, // Driver might not be assigned/accept initially
+        references: { model: "users", key: "uid" },
       },
       status: {
         type: DataTypes.ENUM(
@@ -50,23 +42,27 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: "pending",
       },
+
+       // --- CHANGED TO JSONB (Fixes "geometry does not exist" error) ---
+       // We will store location as { lat: 28.123, lng: 77.123 }
+      pickupLocation: {
+        type: DataTypes.JSONB, 
+        allowNull: false,
+      },
+      destinationLocation: {
+        type: DataTypes.JSONB, 
+        allowNull: false,
+      },
+      // --------------------------------------------------------------
+
+      // Optional: Human-readable address
       pickupAddress: {
-        // Optional: Human-readable address
         type: DataTypes.STRING,
         allowNull: true,
-      },
-      pickupLocation: {
-        // Store precise coordinates
-        type: DataTypes.GEOMETRY("POINT"), // Use PostGIS POINT type
-        allowNull: false,
       },
       destinationAddress: {
         type: DataTypes.STRING,
         allowNull: true,
-      },
-      destinationLocation: {
-        type: DataTypes.GEOMETRY("POINT"),
-        allowNull: false,
       },
       // Store the chosen route (or the one actually taken)
       routePolyline: {
@@ -84,14 +80,18 @@ module.exports = (sequelize) => {
         defaultValue: "INR",
       },
       paymentStatus: {
-        type: DataTypes.ENUM("pending", "succeeded", "failed"),
+        type: DataTypes.ENUM("pending", "processing", "succeeded", "failed"),
         allowNull: false,
         defaultValue: "pending",
       },
-      stripeChargeId: {
-        // Reference to the Stripe charge
+      stripePaymentIntentId: { // Renamed for clarity, matches Stripe
         type: DataTypes.STRING,
         allowNull: true,
+      },
+      // Keep stripeChargeId if you use Charges API instead of PaymentIntents
+      stripeChargeId: {
+         type: DataTypes.STRING,
+         allowNull: true,
       },
       requestedAt: {
         type: DataTypes.DATE,
@@ -103,18 +103,16 @@ module.exports = (sequelize) => {
       completedAt: { type: DataTypes.DATE, allowNull: true },
       cancelledAt: { type: DataTypes.DATE, allowNull: true },
 
-      // Add fields for ratings later if needed, or link to a separate Rating model
-      // riderRating: { type: DataTypes.INTEGER, allowNull: true },
-      // driverRating: { type: DataTypes.INTEGER, allowNull: true },
+      // Ratings given after the ride
+      ratingGivenToDriver: { type: DataTypes.INTEGER, allowNull: true, validate: { min: 1, max: 5 } },
+      ratingGivenToRider: { type: DataTypes.INTEGER, allowNull: true, validate: { min: 1, max: 5 } },
     },
     {
-      // Sequelize options
       tableName: "rides",
       timestamps: true, // Uses createdAt, updatedAt
-      // paranoid: true, // Optional soft deletes
       indexes: [
-        { fields: ["riderId"] },
-        { fields: ["driverId"] },
+        { fields: ["riderUid"] },
+        { fields: ["driverUid"] },
         { fields: ["status"] },
         { fields: ["requestedAt"] },
       ],
